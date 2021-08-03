@@ -1,6 +1,7 @@
 \documentclass[a4]{report}
 
 \usepackage{minted}
+\usepackage{graphicx}
 \usepackage[dvipsnames]{xcolor}
 \usepackage[localise]{xepersian}
 
@@ -296,9 +297,9 @@ import "time"
 
 func main() {
     go func() {
-            for time.Now(); true; <-time.NewTicker(time.Second).C {
-                    // Do something
-            }
+        for time.Now(); true; <-time.NewTicker(time.Second).C {
+            // Do something
+        }
     }()
 
     // Do something
@@ -330,20 +331,24 @@ func main() {
         a := 2
         a *= 2
         if a == 1024 {
-                a = 2
-                // Force GC to clear up, should see a memory drop
-                runtime.GC()
+            a = 2
+            // Force GC to clear up, should see a memory drop
+            runtime.GC()
         }
         PrintMemUsage()
     }
 }
 
-// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
+// PrintMemUsage outputs the current,
+// total and OS memory being used.
+// As well as the number
 // of garage collection cycles completed.
 func PrintMemUsage() {
     var m runtime.MemStats
     runtime.ReadMemStats(&m)
-    // For info on each, see: https://golang.org/pkg/runtime/#MemStats
+
+    // For info on each,
+    // see: https://golang.org/pkg/runtime/#MemStats
     fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
     fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
     fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
@@ -364,5 +369,19 @@ func PrintMemUsage() {
 با توجه به اینکه کد بسیار ماژولار بود و هر عملکرد یکتایی تابع و استراکت خود را داشت اضافه کردن این فیچر کار بدون دردسری بود.
 در ابتدا تنها دو نفر داخل مساله بودند حال با اضافه کردن نفر سوم گراف ذهنی ما باید
 تغییر پیدا کند.
+
+\includegraphics[scale=0.5]{fig/call-graph}
+
+\پاراگراف{}
+در گراف بالا نود دوست اضافه شده است که باید به کد نیز اضافه میشد علاوه بر آن زمانی که سفر برای دوست گرفته می‌شود و سرویس ستار فعال است
+باید از طریق پیامک شماره‌ی پنهان شده‌ی راننده به فرد سوم مورد نظر اطلاع‌رسانی شود.
+به همین دلیل باید با سرویس مورفیوس که وظیفه‌ی پیام رسانی را دارد نیز ارتبط می داشتیم همچنین این سرویس توسط سرویس های دیگری داخل شرکت صدا زده میشد که از اس دی کی استفاده می کردند به همن جهبت اس دی کی این سرویس نیز باید تغییر داده میشد و به تیم هایی که این سرویس را کال می کردند اطلاع رسانی میشد
+
+
+\پاراگراف{}
+پس از اضافه کردن فیچر ریویو توسط مدیر مستقیم ورتیکال و رفت و آمد برای تغییر کد بعد از ریویو نوبت به تست آن می شود چون هیچ فیچر جدید یا تغییر زیاد در کد بدون امضای کیو ای نمی تواند ریلیز شود برای تست کردن باید ابتدا کد را داخل محیط تستی دیپلوی می کردم و در ارتباط با کیو ای می بودم تا اگر باگی در کد وجود داشت با مانیتور کردن لاگ ها هنگام تست متوجه اشکال میشدم پس از تست کیو ای برنچ به برنچ مستر مرج می شود حال برای لانچ این فیچر باید کد جدید روی سرورها دیپلوی شوند دیپلوی حتما باید در نیمه شب انجام شود تا اگر به هر دلیل دان تایمی به وجود ضرر کمتری به بیزینس شرکت وارد شود تنها مدیر مستقیم ورتیکال اجازه ی دیپلوی و دسترسی اس اس اچ به سرور ها پروداکشن دارد علاوه بر او باید فرد دیگری که کعکولا توسعه دهنده ی فیچر استحضور داشته باشد و در زمان دیپلوی به دقت سرویس را مانیتور کند و اگر تغییر غیر عادی در ترافیک سرویس ها دید باید فیچر سریعا رول بک شود لازم به ذکر است برخی از فیچرها که بسیار حساس باشند علاوه بر تایید مدیرمستقیم ورتیکال به تایید مدیر چپتر نیز نیاز دارند
+
+\پاراگراف{}
+گروه های رسمی ای در شرکت تشکیل می شود که یکی از آن ها مربوط دیپلوی سرویس هاست هر تیم قبل از ریلیز باید در آن گروه اعلام کند که در حال دیپلوی است و نام سرویس را ذکر کند تا اگر مشکلی به وجود آمد تمامی افراد از جمله دواپس بدانند که ریلیزی صورت گرفته و تمامی احتمالات را در نظر بگیرند
 
 \end{document}
