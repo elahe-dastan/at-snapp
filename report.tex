@@ -1,14 +1,24 @@
 \documentclass[a4]{report}
 
+\usepackage{minted}
+\usepackage[dvipsnames]{xcolor}
 \usepackage[localise]{xepersian}
 
 \settextfont{Vazir}
+\colorlet{LightGray}{Gray!30!}
 
 \begin{document}
 
+\عنوان{گزارش کارآموزی\\شرکت ایده گزین روماک (اسنپ)}
+
+\نویسنده{الهه داستان}
+\تاریخ{تابستان ۱۴۰۰}
+
+\عنوان‌ساز
+
 \فصل{گزارش‌های هفتگی}
 
-\قسمت{هفته اول}
+\قسمت{هفته اول - ۲۲ام تیر ماه}
 
 \پاراگراف{}
 هفته‌ی اول کارآموزی بیشتر صرف شناخت ساختار شرکت و گرفتن دسترسی‌ها و خواندن کدهای قبلی می‌شود.
@@ -74,7 +84,7 @@
 تا با معماری سرویس‌های ورتیکال و شرکت آشنا شود
 و بداند هر کدام از سوریس‌های تیم با چه سرویس‌هایی از سایر ورتیکال‌ها در ارتباط است.
 
-\قسمت{هفته دوم}
+\قسمت{هفته دوم - ۲۹ تیر ماه}
 
 \پاراگراف{}
 پس از اینکه با سرویس‌های شرکت به طور کلی آشنا شدم حال باید روی یک سرویس شروع به توسعه می‌کردم.
@@ -103,5 +113,256 @@
 آن نسخه با توجه به تنظیمات صورت گرفته به طور خودکار راه‌اندازی مجدد خواهد شد.
 تسک اول من جستجو در کد و تحقیق جهت پیدا کردن مشکل نشتی حافظه و حل آن بود.
 در جهت جستجو برای حل این مشکل اقدامات زیر انجام شد.
+
+\پاراگراف{}
+کد این سرویس نسبتا زیاد است و خواندن خظ به خط آن احتمالا زمان بسیار زیادی می‌خواست بنابراین روش بهتر این بود که یک نسخه از کد را داخل محیط تستی شرکت بالا بیاورم و
+سپس آن را مانیتور کنم. اگر بدون اینکه کد زیر بار باشد سایز هیپ\پانویس{Heap} مرتبا افزایش پیدا کند به احتمال زیاد باید یک گوروتین\پانویس{Goroutine} داخل کد وجود داشته باشد
+که در پس زمینه همواره در حال اجرا است و مشکلی در آن وجود دارد.
+البته سایز هیپ در حالتی که ریکويستی زده نمیشد افزایش پیدا نمیکرد پس مجبور شدم آن را زیر باز ببرم این کد چندین API داشت و هر یک را لود تست و به سایز مموری رجوع می‌کردم.
+هر API که زیر باز قرار گرفتن آن باعث افزایش سایز مموری شود سر نخ خوبی برای پیدا کردن مشکل است.
+برای لود تست کردن از کتابخانه‌ی \متن‌لاتین{bombardier}\پانویس{https://github.com/codesenberg/bombardier} و تکه کد زیر استفاده کردم.
+
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{bash}
+#!/bin/bash
+
+for i in {1..5} ; do
+  for j in {1..2000};do
+    curl -v -X POST -d '{"enable": true}' \
+        -H 'Content-Type: application/json' \
+        https://my-service.io/api/method
+    sleep .5
+  done
+  sleep 5m
+  curl -L https://my-service.io/debug/pprof/heap > heap.$i.pprof
+done
+\end{minted}
+\end{latin}
+
+بعد از پیدا کردن API مورد نظر شروع به خواندن کد مربوط به آن API کردم. نکته‌ی اول که باید مد نظر قرار دهیم این است که یک کانکشن باز یا هر مورد دیگری نمی تواند باعث مموری لیک شود
+اگر کد دچار مموری لیک شده یعنی داریم تکه کد مخربی را داخل یک حلقه برای مدت زمان زیادی اجرا می‌کنی.م هنگام خواندن کد باید به نکات مهمی داخل گولنگ توجه کنیم از جمله
+
+\شروع{شمارش}
+\فقره رفرنس‌ها
+\فقره کانتکست‌ها
+\فقره کانکشن‌ها
+\فقره تیکرها
+\پایان{شمارش}
+
+\پاراگراف{}
+به کدی که در ادامه می‌آید دقت کنید. یک نمونه از دیتابیس ساخنه شده و به تابع داده شده است. سپس داخل تابع یک استراکت ساخته شده که نمونه دیتابیس به عنوان یک فیلد از آن استراکت قرار گرفته است.
+ممکن است انتظار داشته باشیم بعد از برگشتن از تابع \متن‌لاتین{Garbage Collector} استراکت ساخته شده را از بین ببرد اما این اتفاق نمی افتد.
+چرا که این استراکت به نمونه دیتابیس رفرنس دارد که نمیتواند از بین برده شود. این اتفاق زمانی می افتد که با اشاره‌گرها کار می‌کنیم.
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import (
+        "database/sql"
+        "log"
+)
+
+type Struct struct {
+        db *sql.DB
+        // some other fields
+}
+
+func main() {
+    db, err := sql.Open("driverName", "dataSourceName")
+    if err != nil {
+        log.Fatalf("Cannot open database dataSourceName: %s", err)
+    }
+
+    DoSomething(db)
+}
+
+func DoSomething(db *sql.DB) {
+    s := Struct{db: db}
+    // do something
+}
+\end{minted}
+\end{latin}
+
+\پاراگراف{}
+فراموش نکنید که کانتکست ها را کنسل کنید.
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import "context"
+
+func main() {
+    ctx, cancelCtx := context.WithCancel(context.Background())
+    defer cancelCtx()
+}
+\end{minted}
+\end{latin}
+
+\پاراگراف{}
+هر سوکت که باز می‌شود باید حتما بسته شود. البته اکثرا از کتابخانه‌ها برای باز کردن سوکت استفاده می‌کنیم. این کتابخانه ها خود موارد مختلفی را هندل می‌کنند تا بعد از اتمام کار ما سوکت بسته شود.
+اما به هر حال باید به آن توجه کنیم چراکه حالاتی وجود دارد که سوکت باز می‌ماند به تکه کد زیر دقت کنید.
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import (
+    "database/sql"
+    "log"
+)
+
+type Storage struct {
+    db *sql.DB
+    // some other fields
+}
+
+func (s *Storage) fetchAll() {
+    // *Rows should be closed
+    rows, err := s.db.Query("SELECT * FROM somewhere")
+    if err != nil {
+            log.Fatal(err)
+    }
+
+    defer func() {
+        err := rows.Close()
+        if err != nil {
+                log.Fatal(err)
+        }
+    }()
+
+    if err := rows.Err(); err != nil {
+        log.Fatal(err)
+    }
+
+    // If Next is called and returns false and there are no
+    // further result sets, the Rows are closed automatically
+    // but an error may occur inside the block
+    for rows.Next() {
+        // If this error or any other one occurs, this loop doesn't continue
+        // so if I hadn't called close in a defer function we would have an
+        // open connection forever
+        err := rows.Scan("&dest")
+        if err != nil {
+            return
+        }
+    }
+}
+
+func main() {
+    // usually we make a single db instance and use
+    // it during the whole project life,
+    // so it's rare to call Close function on it
+    db, err := sql.Open("driverName", "dataSourceName")
+    if err != nil {
+        log.Fatalf("Cannot open database dataSourceName: %s", err)
+    }
+
+    s := Storage{db: db}
+    s.fetchAll()
+
+    // some other code
+}
+\end{minted}
+\end{latin}
+
+\پاراگراف{}
+دقت کنید که تیکرها بعد از شروع، متوقف شوند.
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import "time"
+
+func main() {
+    ticker := time.NewTicker(time.Second)
+    defer ticker.Stop()
+}
+\end{minted}
+\end{latin}
+
+\پاراگراف{}
+مشکل کد که باعث نشتی حافظه می‌شد به دلیل ساختن تیکرها داخل حلقه و متوقف نکردن آن‌ها بود. تکه کدی مانند زیر
+
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import "time"
+
+func main() {
+    go func() {
+            for time.Now(); true; <-time.NewTicker(time.Second).C {
+                    // Do something
+            }
+    }()
+
+    // Do something
+}
+\end{minted}
+\end{latin}
+
+\پاراگراف{}
+برای آنکه مطمئن شوم نشتی حافظه به دلیل تکه کد بالا به وجود آمده است با تکه کد زیر آن را تست کردم:
+
+\begin{latin}
+\begin{minted}[bgcolor=LightGray]{go}
+package main
+
+import (
+    "fmt"
+    "runtime"
+    "time"
+)
+
+func main() {
+    // Below is an example of using our PrintMemUsage() function
+    // Print our starting memory usage (should be around 0mb)
+    PrintMemUsage()
+
+    ticker := time.NewTicker(time.Millisecond)
+    defer ticker.Stop()
+    for time.Now(); true; <-ticker.C {
+        a := 2
+        a *= 2
+        if a == 1024 {
+                a = 2
+                // Force GC to clear up, should see a memory drop
+                runtime.GC()
+        }
+        PrintMemUsage()
+    }
+}
+
+// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
+// of garage collection cycles completed.
+func PrintMemUsage() {
+    var m runtime.MemStats
+    runtime.ReadMemStats(&m)
+    // For info on each, see: https://golang.org/pkg/runtime/#MemStats
+    fmt.Printf("Alloc = %v MiB", bToMb(m.Alloc))
+    fmt.Printf("\tTotalAlloc = %v MiB", bToMb(m.TotalAlloc))
+    fmt.Printf("\tSys = %v MiB", bToMb(m.Sys))
+    fmt.Printf("\tNumGC = %v\n", m.NumGC)
+}
+\end{minted}
+\end{latin}
+
+برنچی از مستر گرفتهو این تکه کد که باعث نشتی حافظه می‌شد را تغییر دادم و مرج ریکويست را قرار دادم. پس از مرور برنچ توسط مدیر ورتیکال این برنچ با مستر مرج شد.
+
+\قسمت{هفته سوم - ۵ام مرداد ماه}
+
+\پاراگراف{}
+در هفته‌ی سوم فرصت برای توسعه‌ی بیشتر روی سرویس ستار به وجود آمد.
+در هنگام گرفتن سفر در اکانت می‌توانید مشخص کنید که این سفر را برای خوتان می‌خواهید یا برای دوستتان.
+اگر سرویس پنهان کردن شماره را فعال کرده باشید و اسنپ را برای خودتان بخواهید هیچ مشکلی نخواهید داشت اما اگر برای فرد دیگری سفر بگیرید شماره‌ها پنهان نخواهند شد.
+تسک این هفته اضافه کردن این قسمت به کد بود.
+با توجه به اینکه کد بسیار ماژولار بود و هر عملکرد یکتایی تابع و استراکت خود را داشت اضافه کردن این فیچر کار بدون دردسری بود.
+در ابتدا تنها دو نفر داخل مساله بودند حال با اضافه کردن نفر سوم گراف ذهنی ما باید
+تغییر پیدا کند.
 
 \end{document}
